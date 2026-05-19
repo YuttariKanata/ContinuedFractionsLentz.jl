@@ -14,6 +14,37 @@ b0 + a1/(b1 + a2/(b2 + a3/(b3 + ...)))
 
 ## 使い方
 
+`ContinuedFractionsLentz.jl` は現在公式レジストリに登録されていない「野良パッケージ（未登録パッケージ）」のため、GitHubのURLを指定してインストールする必要があります。
+
+Juliaのパッケージマネージャ（Pkg）を使って、以下のいずれかの方法でインストールしてください。
+
+### 方法1：JuliaのREPL（対話型画面）からインストール（推奨）
+
+一番簡単で、視覚的に分かりやすい方法です。
+
+1. Juliaを起動します。
+2. キーボードの **`]`** キーを押して、パッケージモードに入ります（プロンプトが `julia>` から `(@v1.x) pkg>` に変わります）。
+3. 以下のコマンドを入力してEnterを押してください。
+
+```julia
+add https://github.com/YuttariKanata/ContinuedFractionsLentz.jl
+
+```
+
+4. インストールが終わったら、**Backspace** キー（または `Ctrl+C`）を押して通常の `julia>` プロンプトに戻ります。
+
+### 方法2：スクリプトやJupyter/VS Code上でインストール
+
+コードとして実行したい場合や、ノートブック上でインストールしたい場合は、`Pkg` モジュールを使用します。
+
+```julia
+using Pkg
+Pkg.add(url="https://github.com/YuttariKanata/ContinuedFractionsLentz.jl")
+
+```
+
+インストール後、同じように `using ContinuedFractionsLentz` によってモジュールを使用できます。
+
 ```julia
 using ContinuedFractionsLentz
 
@@ -76,33 +107,4 @@ result = modified_lentz(a_tan, b_tan; rtol=1e-14)
 ```
 
 ## 実行
-
-`ContinuedFractionsLentz.jl` は現在公式レジストリに登録されていない「野良パッケージ（未登録パッケージ）」のため、GitHubのURLを指定してインストールする必要があります。
-
-Juliaのパッケージマネージャ（Pkg）を使って、以下のいずれかの方法でインストールしてください。
-
-### 方法1：JuliaのREPL（対話型画面）からインストール（推奨）
-
-一番簡単で、視覚的に分かりやすい方法です。
-
-1. Juliaを起動します。
-2. キーボードの **`]`** キーを押して、パッケージモードに入ります（プロンプトが `julia>` から `(@v1.x) pkg>` に変わります）。
-3. 以下のコマンドを入力してEnterを押してください。
-
-```julia
-add https://github.com/YuttariKanata/ContinuedFractionsLentz.jl
-
-```
-
-4. インストールが終わったら、**Backspace** キー（または `Ctrl+C`）を押して通常の `julia>` プロンプトに戻ります。
-
-### 方法2：スクリプトやJupyter/VS Code上でインストール
-
-コードとして実行したい場合や、ノートブック上でインストールしたい場合は、`Pkg` モジュールを使用します。
-
-```julia
-using Pkg
-Pkg.add(url="https://github.com/YuttariKanata/ContinuedFractionsLentz.jl")
-
-```
 
