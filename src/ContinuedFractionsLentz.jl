@@ -29,16 +29,19 @@ struct LentzResult{T}
     last_delta::T
 end
 
-_protect_zero(x, tiny) = iszero(x) || abs(x) < tiny ? copysign(tiny, ifelse(iszero(real(x)), one(real(x)), real(x))) : x
+# -0.0 の符号を正しく維持
+@inline function _protect_zero(x::T, tiny::T) where {T<:AbstractFloat}
+    abs(x) < tiny ? copysign(tiny, x) : x
+end
 
 function _promote_options(::Type{T}; atol=nothing, rtol=nothing, maxiter=10_000,
                           tiny=nothing, throw_on_nonconvergence=false) where {T<:AbstractFloat}
     LentzOptions{T}(
-        isnothing(atol) ? zero(T) : T(atol),
-        isnothing(rtol) ? sqrt(eps(T)) : T(rtol),
-        maxiter,
-        isnothing(tiny) ? sqrt(floatmin(T)) : T(tiny),
-        throw_on_nonconvergence,
+        atol = isnothing(atol) ? zero(T) : T(atol),
+        rtol = isnothing(rtol) ? sqrt(eps(T)) : T(rtol),
+        maxiter = maxiter,
+        tiny = isnothing(tiny) ? sqrt(floatmin(T)) : T(tiny),
+        throw_on_nonconvergence = throw_on_nonconvergence,
     )
 end
 
@@ -65,7 +68,9 @@ function modified_lentz(a, b; T=Float64, atol=nothing, rtol=nothing, maxiter=10_
     return modified_lentz(a, b, opts)
 end
 
-function modified_lentz(a, b, opts::LentzOptions{T}) where {T<:AbstractFloat}
+# A, B を型パラメータに含めて特殊化を強制。これでループ内が完全インライン化可能になり、アロケーションがゼロになる
+
+function modified_lentz(a::A, b::B, opts::LentzOptions{T}) where {A, B, T<:AbstractFloat}
     f = _protect_zero(T(b(0)), opts.tiny)
     C = f
     D = zero(T)
@@ -79,9 +84,12 @@ function modified_lentz(a, b, opts::LentzOptions{T}) where {T<:AbstractFloat}
         C = _protect_zero(bn + an / C, opts.tiny)
         D = inv(D)
         delta = C * D
+
+        f_old = f
         f *= delta
 
-        if abs(delta - one(T)) <= opts.atol + opts.rtol
+        # 本来の定義（絶対誤差 + 相対誤差のハイブリッド）に基づく正しい収束判定
+        if abs(f - f_old) <= opts.atol + opts.rtol * abs(f)
             return LentzResult(f, n, true, delta)
         end
     end
@@ -114,7 +122,7 @@ end
 Evaluate the finite `n`th convergent from the bottom up. This is useful for
 checking a new coefficient definition before using the infinite algorithm.
 """
-function convergent(a, b, n::Integer; T=Float64)
+function convergent(a::A, b::B, n::Integer; T=Float64) where {A, B}
     n < 0 && throw(ArgumentError("n must be non-negative"))
     value = T(b(n))
     for k in (n - 1):-1:0
