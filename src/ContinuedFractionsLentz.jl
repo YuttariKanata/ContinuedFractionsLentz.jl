@@ -15,6 +15,7 @@ Base.@kwdef struct LentzOptions{T<:AbstractFloat}
     maxiter::Int = 10_000
     tiny::T = sqrt(floatmin(T))
     throw_on_nonconvergence::Bool = false
+    convergence::Symbol = :value
 end
 
 """
@@ -34,8 +35,15 @@ end
     abs(x) < tiny ? copysign(tiny, x) : x
 end
 
-function _promote_options(::Type{T}; atol=nothing, rtol=nothing, maxiter=10_000, tiny=nothing,
-                          throw_on_nonconvergence=false) where {T<:AbstractFloat}
+function _promote_options(
+            ::Type{T};
+            atol=nothing,
+            rtol=nothing,
+            maxiter=10_000,
+            tiny=nothing,
+            throw_on_nonconvergence=false,
+            convergence=:value,
+        ) where {T<:AbstractFloat}
 
     atol_T = isnothing(atol) ? zero(T) : T(atol)
     rtol_T = isnothing(rtol) ? sqrt(eps(T)) : T(rtol)
@@ -46,12 +54,20 @@ function _promote_options(::Type{T}; atol=nothing, rtol=nothing, maxiter=10_000,
     tiny_T <= 0 && throw(ArgumentError("tiny must be positive"))
     maxiter < 0 && throw(ArgumentError("maxiter must be non-negative"))
 
+    convergence in (:value, :delta) ||
+        throw(ArgumentError("convergence must be :value or :delta"))
+
+    if convergence === :delta
+        iszero(atol_T) || throw(ArgumentError("in convergence is :delta, atol must be zero."))
+    end
+
     return LentzOptions{T}(
         atol = atol_T,
         rtol = rtol_T,
         maxiter = maxiter,
         tiny = tiny_T,
         throw_on_nonconvergence = throw_on_nonconvergence,
+        convergence = convergence,
     )
 end
 
@@ -72,9 +88,28 @@ with the modified Lentz algorithm.
 The keyword arguments are `atol`, `rtol`, `maxiter`, `tiny`,
 `throw_on_nonconvergence`, and `T`.
 """
-function modified_lentz(a, b; T=Float64, atol=nothing, rtol=nothing, maxiter=10_000,
-                        tiny=nothing, throw_on_nonconvergence=false)
-    opts = _promote_options(T; atol, rtol, maxiter, tiny, throw_on_nonconvergence)
+function modified_lentz(
+            a,
+            b;
+            T=Float64,
+            atol=nothing,
+            rtol=nothing,
+            maxiter=10_000,
+            tiny=nothing,
+            throw_on_nonconvergence=false,
+            convergence=:value,
+        )
+
+    opts = _promote_options(
+        T;
+        atol,
+        rtol,
+        maxiter,
+        tiny,
+        throw_on_nonconvergence,
+        convergence,
+    )
+
     return modified_lentz(a, b, opts)
 end
 
@@ -86,21 +121,39 @@ function modified_lentz(a::A, b::B, opts::LentzOptions{T}) where {A, B, T<:Abstr
     D = zero(T)
     delta = one(T)
 
-    for n in 1:opts.maxiter
-        an = T(a(n))
-        bn = T(b(n))
+    if opts.convergence === :delta
+        for n in 1:opts.maxiter
+            an = T(a(n))
+            bn = T(b(n))
 
-        D = _protect_zero(bn + an * D, opts.tiny)
-        C = _protect_zero(bn + an / C, opts.tiny)
-        D = inv(D)
-        delta = C * D
+            D = _protect_zero(bn + an * D, opts.tiny)
+            C = _protect_zero(bn + an / C, opts.tiny)
+            D = inv(D)
+            delta = C * D
 
-        f_old = f
-        f *= delta
+            f *= delta
 
-        # 本来の定義（絶対誤差 + 相対誤差のハイブリッド）に基づく正しい収束判定
-        if abs(f - f_old) <= opts.atol + opts.rtol * abs(f)
-            return LentzResult(f, n, true, delta)
+            if abs(delta - one(T)) < opts.rtol
+                return LentzResult(f, n, true, delta)
+            end
+        end
+    else
+        for n in 1:opts.maxiter
+            an = T(a(n))
+            bn = T(b(n))
+
+            D = _protect_zero(bn + an * D, opts.tiny)
+            C = _protect_zero(bn + an / C, opts.tiny)
+            D = inv(D)
+            delta = C * D
+
+            f_old = f
+            f *= delta
+
+            # 本来の定義（絶対誤差 + 相対誤差のハイブリッド）に基づく正しい収束判定
+            if abs(f - f_old) <= opts.atol + opts.rtol * abs(f)
+                return LentzResult(f, n, true, delta)
+            end
         end
     end
 
