@@ -34,13 +34,23 @@ end
     abs(x) < tiny ? copysign(tiny, x) : x
 end
 
-function _promote_options(::Type{T}; atol=nothing, rtol=nothing, maxiter=10_000,
-                          tiny=nothing, throw_on_nonconvergence=false) where {T<:AbstractFloat}
-    LentzOptions{T}(
-        atol = isnothing(atol) ? zero(T) : T(atol),
-        rtol = isnothing(rtol) ? sqrt(eps(T)) : T(rtol),
+function _promote_options(::Type{T}; atol=nothing, rtol=nothing, maxiter=10_000, tiny=nothing,
+                          throw_on_nonconvergence=false) where {T<:AbstractFloat}
+
+    atol_T = isnothing(atol) ? zero(T) : T(atol)
+    rtol_T = isnothing(rtol) ? sqrt(eps(T)) : T(rtol)
+    tiny_T = isnothing(tiny) ? sqrt(floatmin(T)) : T(tiny)
+
+    atol_T < 0 && throw(ArgumentError("atol must be non-negative"))
+    rtol_T < 0 && throw(ArgumentError("rtol must be non-negative"))
+    tiny_T <= 0 && throw(ArgumentError("tiny must be positive"))
+    maxiter < 0 && throw(ArgumentError("maxiter must be non-negative"))
+
+    return LentzOptions{T}(
+        atol = atol_T,
+        rtol = rtol_T,
         maxiter = maxiter,
-        tiny = isnothing(tiny) ? sqrt(floatmin(T)) : T(tiny),
+        tiny = tiny_T,
         throw_on_nonconvergence = throw_on_nonconvergence,
     )
 end
